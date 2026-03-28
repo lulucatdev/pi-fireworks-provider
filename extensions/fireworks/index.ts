@@ -218,36 +218,22 @@ async function refreshApiKey(credentials: OAuthCredentials): Promise<OAuthCreden
 
 export default function fireworksExtension(pi: ExtensionAPI) {
   // Register immediately with fallback models, then update asynchronously
-  pi.registerProvider(PROVIDER_ID, {
+  const providerConfig = (models: ProviderModel[]) => ({
     baseUrl: BASE_URL,
     apiKey: "FIREWORKS_API_KEY",
-    api: "openai-completions",
-    models: DEFAULT_MODELS,
+    api: "openai-completions" as const,
+    models,
     oauth: {
       name: PROVIDER_NAME,
       login: loginWithApiKey,
       refreshToken: refreshApiKey,
-      getApiKey: (credentials) => credentials.access,
+      getApiKey: (credentials: OAuthCredentials) => credentials.access,
     },
   });
 
-  console.log(`[fireworks] Registered ${DEFAULT_MODELS.length} models (fallback)`);
+  pi.registerProvider(PROVIDER_ID, providerConfig(DEFAULT_MODELS));
 
-  // Fetch fresh models from models.dev and re-register if successful
   fetchModelsFromModelsDev().then((models) => {
-    if (!models) return;
-    pi.registerProvider(PROVIDER_ID, {
-      baseUrl: BASE_URL,
-      apiKey: "FIREWORKS_API_KEY",
-      api: "openai-completions",
-      models,
-      oauth: {
-        name: PROVIDER_NAME,
-        login: loginWithApiKey,
-        refreshToken: refreshApiKey,
-        getApiKey: (credentials) => credentials.access,
-      },
-    });
-    console.log(`[fireworks] Updated to ${models.length} models from models.dev`);
+    if (models) pi.registerProvider(PROVIDER_ID, providerConfig(models));
   });
 }
