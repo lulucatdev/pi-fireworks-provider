@@ -1,5 +1,5 @@
-import type { OAuthCredentials, OAuthLoginCallbacks } from "@mariozechner/pi-ai";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { OAuthCredentials, OAuthLoginCallbacks } from "@earendil-works/pi-ai";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 const PROVIDER_ID = "fireworks";
 const PROVIDER_NAME = "Fireworks AI";
@@ -48,6 +48,15 @@ const DEFAULT_MODELS: ProviderModel[] = [
     input: ["text"],
     cost: { input: 1, output: 3.2, cacheRead: 0.5, cacheWrite: 0 },
     contextWindow: 202752,
+    maxTokens: 131072,
+  },
+  {
+    id: "accounts/fireworks/models/glm-5p1",
+    name: "GLM 5.1",
+    reasoning: true,
+    input: ["text"],
+    cost: { input: 1.4, output: 4.4, cacheRead: 0.26, cacheWrite: 0 },
+    contextWindow: 202800,
     maxTokens: 131072,
   },
   {
@@ -140,6 +149,24 @@ const DEFAULT_MODELS: ProviderModel[] = [
     contextWindow: 131072,
     maxTokens: 32768,
   },
+  {
+    id: "accounts/fireworks/routers/kimi-k2p5-turbo",
+    name: "Kimi K2.5 Turbo (firepass)",
+    reasoning: true,
+    input: ["text", "image"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 256000,
+    maxTokens: 256000,
+  },
+  {
+    id: "accounts/fireworks/routers/kimi-k2p6-turbo",
+    name: "Kimi K2.6 Turbo (firepass)",
+    reasoning: true,
+    input: ["text", "image"],
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+    contextWindow: 262000,
+    maxTokens: 262000,
+  },
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -179,6 +206,14 @@ function normalizeProviderModel(id: string, value: unknown): ProviderModel | und
   };
 }
 
+function mergeModels(models: ProviderModel[], fallbackModels: ProviderModel[]): ProviderModel[] {
+  const byId = new Map(models.map((model) => [model.id, model]));
+  for (const model of fallbackModels) {
+    if (!byId.has(model.id)) byId.set(model.id, model);
+  }
+  return Array.from(byId.values()).sort((a, b) => a.id.localeCompare(b.id));
+}
+
 async function fetchModelsFromModelsDev(): Promise<ProviderModel[] | undefined> {
   try {
     const res = await fetch(MODELS_DEV_URL);
@@ -192,7 +227,7 @@ async function fetchModelsFromModelsDev(): Promise<ProviderModel[] | undefined> 
       .filter((m): m is ProviderModel => Boolean(m))
       .sort((a, b) => a.id.localeCompare(b.id));
 
-    return models.length > 0 ? models : undefined;
+    return models.length > 0 ? mergeModels(models, DEFAULT_MODELS) : undefined;
   } catch {
     return undefined;
   }
